@@ -1,0 +1,13 @@
+.dockerignore
+Dockerfile
+docker-compose.yml
+.git/
+.build/
+.swiftpm/
+**/.DS_Store
+Packages
+**/xcuserdata
+**/*.xcodeproj
+**/DerivedData/
+**/db.sqlite
+**/.swiftpm
