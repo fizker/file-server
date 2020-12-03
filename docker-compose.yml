@@ -23,6 +23,11 @@ services:
     build:
       context: .
     environment:
+      upload-folder: /uploads
       <<: *shared_environment
+    volumes:
+      - type: bind
+        source: ./upload
+        target: /uploads
     ports:
       - '8080:80'

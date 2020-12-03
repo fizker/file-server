@@ -5,7 +5,14 @@ struct FileUpload: Decodable {
 	var foo: String
 }
 
+enum ConfigurationError: Error {
+	case uploadFolderMissing
+}
+
 func routes(_ app: Application) throws {
+	guard let uploadFolder = Environment.get("upload-folder")
+	else { throw ConfigurationError.uploadFolderMissing }
+
 	app.get { req in
 		return "It works!"
 	}
@@ -14,8 +21,12 @@ func routes(_ app: Application) throws {
 		return "Hello, world!"
 	}
 
-	app.post("file") { req -> String in
+	app.post("file") { req -> EventLoopFuture<String> in
 		let dto = try req.content.decode(FileUpload.self)
-		return "\(dto.file.filename): \(dto.file.data.readableBytes)"
+
+		let path = "\(uploadFolder)/\(dto.file.filename)"
+
+		return req.fileio.writeFile(dto.file.data, at: path)
+		.map { "thanks" }
 	}
 }
