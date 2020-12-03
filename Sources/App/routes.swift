@@ -24,16 +24,44 @@ func routes(_ app: Application) throws {
 				}
 			</style>
 			<form method="post" action="/" enctype="multipart/form-data">
-				<label class="file">
-					File:
-					<input type="file" name="file[]">
-				</label>
-				<label class="file">
-					File:
-					<input type="file" name="file[]">
-				</label>
 				<button type="submit">Upload</button>
 			</form>
+
+			<script>
+				function addFile(event) {
+					const form = document.querySelector("form")
+					const button = form.querySelector("form > button")
+
+					const div = document.createElement("div")
+					div.className = "file"
+
+					const input = document.createElement("input")
+					div.appendChild(input)
+					input.name = "file[]"
+					input.type = "file"
+					input.onchange = addFile
+
+					form.insertBefore(div, button)
+
+					if(event == null) {
+						return
+					}
+
+					const currentElement = event.currentTarget
+					if(currentElement.nextElementSibling == null) {
+						const container = currentElement.parentElement
+
+						const removeButton = document.createElement("button")
+						removeButton.innerHTML = "Remove file"
+						removeButton.onclick = () => {
+							container.remove()
+						}
+						container.appendChild(removeButton)
+					}
+				}
+
+				addFile()
+			</script>
 			"""
 		)
 	}
