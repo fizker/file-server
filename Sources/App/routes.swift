@@ -2,7 +2,6 @@ import Vapor
 
 struct FileUpload: Decodable {
 	var file: File
-	var foo: String
 }
 
 enum ConfigurationError: Error {
@@ -14,14 +13,24 @@ func routes(_ app: Application) throws {
 	else { throw ConfigurationError.uploadFolderMissing }
 
 	app.get { req in
-		return "It works!"
+		return Response(
+			headers: ["content-type": "text/html"],
+			body: """
+			<!doctype html>
+			<title>Upload files</title>
+			<form method="post" action="/upload" enctype="multipart/form-data">
+				<label>
+					File:
+					<input type="file" name="file">
+				</label>
+				<br>
+				<button type="submit">Upload</button>
+			</form>
+			"""
+		)
 	}
 
-	app.get("hello") { req -> String in
-		return "Hello, world!"
-	}
-
-	app.post("file") { req -> EventLoopFuture<String> in
+	app.post("upload") { req -> EventLoopFuture<String> in
 		let dto = try req.content.decode(FileUpload.self)
 
 		let path = "\(uploadFolder)/\(dto.file.filename)"
