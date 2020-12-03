@@ -1,7 +1,7 @@
 import Vapor
 
 struct FileUpload: Decodable {
-	var file: File
+	var file: [File]
 }
 
 enum ConfigurationError: Error {
@@ -18,24 +18,33 @@ func routes(_ app: Application) throws {
 			body: """
 			<!doctype html>
 			<title>Upload files</title>
-			<form method="post" action="/upload" enctype="multipart/form-data">
-				<label>
+			<style>
+				.file {
+					display: block;
+				}
+			</style>
+			<form method="post" action="/" enctype="multipart/form-data">
+				<label class="file">
 					File:
-					<input type="file" name="file">
+					<input type="file" name="file[]">
 				</label>
-				<br>
+				<label class="file">
+					File:
+					<input type="file" name="file[]">
+				</label>
 				<button type="submit">Upload</button>
 			</form>
 			"""
 		)
 	}
 
-	app.post("upload") { req -> EventLoopFuture<String> in
+	app.post { req -> EventLoopFuture<String> in
 		let dto = try req.content.decode(FileUpload.self)
 
-		let path = "\(uploadFolder)/\(dto.file.filename)"
-
-		return req.fileio.writeFile(dto.file.data, at: path)
+		return EventLoopFuture.andAllComplete(dto.file.map { file -> EventLoopFuture<Void> in
+			let path = "\(uploadFolder)/\(file.filename)"
+			return req.fileio.writeFile(file.data, at: path)
+		}, on: req.eventLoop.next())
 		.map { "thanks" }
 	}
 }
