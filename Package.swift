@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.5
 import PackageDescription
 
 let package = Package(
@@ -8,7 +8,7 @@ let package = Package(
 	],
 	dependencies: [
 		// 💧 A server-side Swift web framework.
-		.package(url: "https://github.com/vapor/vapor.git", from: "4.0.0"),
+		.package(url: "https://github.com/vapor/vapor.git", from: "4.54.0"),
 	],
 	targets: [
 		.target(
@@ -23,7 +23,7 @@ let package = Package(
 				.unsafeFlags(["-cross-module-optimization"], .when(configuration: .release)),
 			]
 		),
-		.target(name: "Run", dependencies: [.target(name: "App")]),
+		.executableTarget(name: "Run", dependencies: [.target(name: "App")]),
 		.testTarget(name: "AppTests", dependencies: [
 			.target(name: "App"),
 			.product(name: "XCTVapor", package: "vapor"),
