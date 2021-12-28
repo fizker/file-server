@@ -9,8 +9,7 @@ enum ConfigurationError: Error {
 }
 
 func routes(_ app: Application) throws {
-	guard let uploadFolder = Environment.get("upload-folder")
-	else { throw ConfigurationError.uploadFolderMissing }
+	let uploadFolder = try app.envVars.uploadFolder
 
 	app.get { req in
 		return Response(

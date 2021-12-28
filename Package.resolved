@@ -65,6 +65,15 @@
         }
       },
       {
+        "package": "swift-environment-variables",
+        "repositoryURL": "https://github.com/fizker/swift-environment-variables.git",
+        "state": {
+          "branch": null,
+          "revision": "37f5b5a77780a882ea886ead09c4081793bee8fc",
+          "version": "1.0.0"
+        }
+      },
+      {
         "package": "swift-log",
         "repositoryURL": "https://github.com/apple/swift-log.git",
         "state": {
