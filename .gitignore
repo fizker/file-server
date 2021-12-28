@@ -8,3 +8,4 @@ db.sqlite
 .swiftpm
 
 upload/*
+docker-compose.override.yml

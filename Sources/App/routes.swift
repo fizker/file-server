@@ -65,7 +65,7 @@ func routes(_ app: Application) throws {
 		)
 	}
 
-	app.post { req -> EventLoopFuture<String> in
+	app.on(.POST, body: .collect(maxSize: app.envVars.maxUploadSize)) { req -> EventLoopFuture<String> in
 		let dto = try req.content.decode(FileUpload.self)
 
 		return EventLoopFuture.andAllComplete(dto.file.map { file -> EventLoopFuture<Void> in
