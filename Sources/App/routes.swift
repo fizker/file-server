@@ -1,4 +1,5 @@
 import Vapor
+import Foundation
 
 struct FileUpload: Decodable {
 	var file: [File]
@@ -63,6 +64,28 @@ func routes(_ app: Application) throws {
 			</script>
 			"""
 		)
+	}
+
+	if #available(macOS 12, *) {
+		app.on(.POST, "test", body: .stream) { req -> String in
+			let path = "/Users/benjamin/Development/own/file-server/temp123"
+			let url = URL(fileURLWithPath: path)
+			try Data().write(to: url)
+			let handle = try await req.application.fileio.openFile(path: path, mode: [ .read, .write ], eventLoop: req.eventLoop.next()).get()
+
+			func write(_ value: String) async throws {
+				let data = value.data(using: .utf8)!
+				let bytes = ByteBuffer(data: data)
+				try await req.application.fileio.write(fileHandle: handle, buffer: bytes, eventLoop: req.eventLoop.next()).get()
+			}
+
+			try await write("foo")
+			try await write("bar")
+
+			try handle.close()
+
+			return "finished"
+		}
 	}
 
 	app.on(.POST, body: .collect(maxSize: app.envVars.maxUploadSize)) { req -> EventLoopFuture<String> in
