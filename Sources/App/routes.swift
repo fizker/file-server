@@ -80,6 +80,29 @@ func routes(_ app: Application) throws {
 			try await write("foo")
 			try await write("bar")
 
+			let data = try await withCheckedThrowingContinuation({ (c: CheckedContinuation<Data, Error>) in
+				var data = Data()
+
+				req.body.drain { (body: BodyStreamResult) in
+					switch body {
+					case .end:
+						c.resume(returning: data)
+					case let .error(error):
+						c.resume(throwing: error)
+					case let .buffer(buffer):
+						let d = Data(buffer: buffer)
+						data.append(d)
+					}
+
+					return req.eventLoop.future()
+				}
+			})
+
+			print("finished stream")
+
+			let content = String(data: data, encoding: .utf8)!
+			print(content)
+
 			try await file.close()
 
 			return "finished"
