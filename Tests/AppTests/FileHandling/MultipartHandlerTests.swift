@@ -9,12 +9,25 @@ func AssertTrue(_ value: Bool, file: StaticString = #file, line: UInt = #line) {
 	XCTAssertTrue(value, file: file, line: line)
 }
 
+final class FakeFileStream: FileStream {
+	var data = Data()
+	var isClosed = false
+
+	func write(_ buffer: ByteBuffer) async throws {
+		data.append(Data(buffer: buffer))
+	}
+
+	func close() async throws {
+		isClosed = true
+	}
+}
+
 extension MultipartHandler {
 	convenience init(boundary: String) throws {
 		var contentType = HTTPMediaType(type: "multipart", subType: "form-data")
 		contentType.parameters["boundary"] = boundary
 
-		try self.init(contentType: contentType)
+		try self.init(contentType: contentType, fileStreamFactory: FakeFileStream.init)
 	}
 }
 
@@ -23,7 +36,7 @@ final class MultipartHandlerTests: XCTestCase {
 		var contentType = HTTPMediaType(type: "multipart", subType: "form-data")
 		contentType.parameters["boundary"] = "foo"
 
-		let subject = try MultipartHandler(contentType: contentType)
+		let subject = try MultipartHandler(contentType: contentType, fileStreamFactory: FakeFileStream.init)
 
 		XCTAssertEqual("foo", await subject.testBoundary)
 	}
@@ -178,6 +191,48 @@ final class MultipartHandlerTests: XCTestCase {
 		let customHeader = value?.header(named: "x-custom-header")
 		XCTAssertNotNil(customHeader)
 		XCTAssertEqual("foo bar baz", customHeader?.value)
+
+		switch value?.content {
+		case let .value(value):
+			XCTAssertEqual("content", value)
+		default:
+			XCTFail("Incorrect content type")
+		}
+	}
+
+	func test__parse__fileContent__createsAFile_fileGetsData() async throws {
+		let boundary = "foobar"
+		let input = """
+		--\(boundary)
+		Content-Disposition: form-data; name="foo"
+		content-type: application/json
+
+		{
+			"foo": "bar",
+			"baz": 1
+		}
+		--\(boundary)--
+		"""
+
+		let subject = try MultipartHandler(boundary: boundary)
+		let request = try await subject.parse(input.data(using: .utf8)!)
+
+		let value = request.value(named: "foo")
+		XCTAssertNotNil(value)
+
+		switch value?.content {
+		case let .file(file):
+			let fakeFile = file.file as? FakeFileStream
+			XCTAssertEqual("application/json", file.contentType)
+			XCTAssertEqual("""
+			{
+				"foo": "bar",
+				"baz": 1
+			}
+			""".data(using: .utf8)!, fakeFile?.data)
+		default:
+			XCTFail("Incorrect content type")
+		}
 	}
 
 	// This exists because @autoclosure does not work with async values, so the built-in XCTAssertEqual cannot be used to verify data on actors

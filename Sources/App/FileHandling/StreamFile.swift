@@ -2,7 +2,18 @@ import Foundation
 import NIOCore
 import Vapor
 
-actor StreamFile {
+protocol FileStream {
+	func write(_ buffer: ByteBuffer) async throws
+	func close() async throws
+}
+extension FileStream {
+	func write(_ data: Data) async throws {
+		let buffer = ByteBuffer(data: data)
+		try await write(buffer)
+	}
+}
+
+actor StreamFile: FileStream {
 	enum Error: Swift.Error {
 		case alreadyClosed
 		case existingFileAtPath
@@ -39,11 +50,6 @@ actor StreamFile {
 		}
 	}
 
-	func write(_ data: Data) async throws {
-		let buffer = ByteBuffer(data: data)
-		try await write(buffer)
-	}
-
 	func write(_ buffer: ByteBuffer) async throws {
 		guard let handle = handle
 		else { throw Error.alreadyClosed }
@@ -55,7 +61,11 @@ actor StreamFile {
 		).get()
 	}
 
-	func close() throws {
+	func close() async throws {
+		try _close()
+	}
+
+	func _close() throws {
 		try handle?.close()
 		handle = nil
 
@@ -67,7 +77,7 @@ actor StreamFile {
 
 	deinit {
 		do {
-			try close()
+			try _close()
 		} catch {
 			print("Failed to close")
 		}

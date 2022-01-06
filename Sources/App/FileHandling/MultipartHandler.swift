@@ -3,8 +3,7 @@ import Vapor
 struct MultipartRequest {
 	struct File {
 		var contentType: String
-		var filename: String
-		var file: StreamFile
+		var file: FileStream
 	}
 
 	struct Header {
@@ -41,6 +40,7 @@ struct MultipartRequest {
 }
 
 actor MultipartHandler {
+	typealias FileStreamFactory = () -> FileStream
 	enum Error: Swift.Error {
 		case invalidContentType
 		case boundaryMissing
@@ -52,13 +52,16 @@ actor MultipartHandler {
 		case invalidContent(String)
 	}
 
+	let fileStreamFactory: FileStreamFactory
 	let boundary: String
 	// This should not exist, but the tests cannot compile if they try to read the let variable
 	var testBoundary: String { boundary }
 
 	var request: MultipartRequest?
 
-	init(contentType: HTTPMediaType) throws {
+	init(contentType: HTTPMediaType, fileStreamFactory: @escaping FileStreamFactory) throws {
+		self.fileStreamFactory = fileStreamFactory
+
 		switch (contentType.type, contentType.subType) {
 		case ("multipart", "form-data"):
 			guard let boundary = contentType.parameters["boundary"]
@@ -88,10 +91,10 @@ actor MultipartHandler {
 			}
 		})
 
-		return try parse(data)
+		return try await parse(data)
 	}
 
-	func parse(_ data: Data) throws -> MultipartRequest {
+	func parse(_ data: Data) async throws -> MultipartRequest {
 		let parser = DataParser(data: data)
 
 		guard
@@ -128,14 +131,21 @@ actor MultipartHandler {
 			let content: MultipartRequest.Content
 
 			let contentType = headers.first { $0.is("content-type") }
-			if contentType == nil {
+			if let contentType = contentType {
+				let file = fileStreamFactory()
+				content = .file(.init(
+					contentType: contentType.value,
+					file: file
+				))
+				guard let data = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!)
+				else { throw Error.invalidContent(name) }
+				try await file.write(data)
+			} else {
 				guard
 					let data = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!),
 					let value = String(data: data, encoding: .utf8)
 				else { throw Error.invalidContent(name) }
 				content = .value(value)
-			} else {
-				fatalError("File not implemented")
 			}
 
 			request.values.append(.init(
