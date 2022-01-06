@@ -1,18 +1,62 @@
 import Vapor
 
+struct MultipartRequest {
+	struct File {
+		var contentType: String
+		var filename: String
+		var file: StreamFile
+	}
+
+	struct Header {
+		var name: String
+		var value: String
+		var properties: [String: String]
+
+		func `is`(_ value: String) -> Bool {
+			value.lowercased() == name.lowercased()
+		}
+	}
+
+	enum Content {
+		case file(File)
+		case value(String)
+	}
+
+	struct Value {
+		var contentDisposition: Header
+		var name: String
+		var headers: [Header]
+		var content: Content
+
+		func header(named name: String) -> Header? {
+			headers.first { $0.is(name) }
+		}
+	}
+
+	var values: [Value]
+
+	func value(named name: String) -> Value? {
+		values.first { $0.name == name }
+	}
+}
+
 actor MultipartHandler {
 	enum Error: Swift.Error {
 		case invalidContentType
 		case boundaryMissing
 		case invalidFormattedData
+		case invalidHeader(String)
+		case contentMissing
+		case contentDispositionMissingFromValue
+		case invalidContentDisposition(MultipartRequest.Header)
+		case invalidContent(String)
 	}
-
-	var values: [String: String] = [:]
-	var files: [(contentType: String, filename: String, file: StreamFile)] = []
 
 	let boundary: String
 	// This should not exist, but the tests cannot compile if they try to read the let variable
 	var testBoundary: String { boundary }
+
+	var request: MultipartRequest?
 
 	init(contentType: HTTPMediaType) throws {
 		switch (contentType.type, contentType.subType) {
@@ -25,7 +69,7 @@ actor MultipartHandler {
 		}
 	}
 
-	func parse(_ body: Request.Body, eventLoop: EventLoop) async throws {
+	func parse(_ body: Request.Body, eventLoop: EventLoop) async throws -> MultipartRequest {
 		let data: Data = try await withCheckedThrowingContinuation({ c in
 			var data = Data()
 
@@ -44,10 +88,10 @@ actor MultipartHandler {
 			}
 		})
 
-		try parse(data)
+		return try parse(data)
 	}
 
-	func parse(_ data: Data) throws {
+	func parse(_ data: Data) throws -> MultipartRequest {
 		let parser = DataParser(data: data)
 
 		guard
@@ -55,45 +99,68 @@ actor MultipartHandler {
 			firstLine == "--\(boundary)"
 		else { throw Error.invalidFormattedData }
 
+		var request = MultipartRequest(values: [])
+
 		var isComplete = false
 		repeat {
-			guard let line = try parser.readLine()
-			else { throw Error.invalidFormattedData }
+			var headers: [MultipartRequest.Header] = []
 
-			let metadata = try parse(line: line)
-
-			// There should be an empty line between content and the segment headers
-			guard try parser.readLine() == ""
-			else { throw Error.invalidFormattedData }
-
-			if metadata.contentType == nil {
-				guard let data = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!)
+			while true {
+				guard let line = try parser.readLine()
 				else { throw Error.invalidFormattedData }
-				values[metadata.name] = String(data: data, encoding: .utf8)
-			} else {
-				// handle file
+
+				guard line != ""
+				else { break }
+
+				guard !line.hasPrefix("--\(boundary)")
+				else { throw Error.contentMissing }
+
+				let header = try parseHeader(from: line)
+
+				headers.append(header)
 			}
+
+			guard let contentDisposition = headers.first(where: { $0.is("content-disposition") })
+			else { throw Error.contentDispositionMissingFromValue }
+			guard let name = contentDisposition.properties["name"]
+			else { throw Error.invalidContentDisposition(contentDisposition) }
+
+			let content: MultipartRequest.Content
+
+			let contentType = headers.first { $0.is("content-type") }
+			if contentType == nil {
+				guard
+					let data = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!),
+					let value = String(data: data, encoding: .utf8)
+				else { throw Error.invalidContent(name) }
+				content = .value(value)
+			} else {
+				fatalError("File not implemented")
+			}
+
+			request.values.append(.init(
+				contentDisposition: contentDisposition,
+				name: name,
+				headers: headers,
+				content: content
+			))
 
 			let remainingLine = try parser.readLine()
 			isComplete = remainingLine == "--"
 		} while !isComplete
+
+		return request
 	}
 
-	struct Metadata {
-		var contentDisposition: String
-		var name: String
-		var contentType: String?
-	}
-
-	func parse(line: String) throws -> Metadata {
+	func parseHeader(from line: String) throws -> MultipartRequest.Header {
 		let data = line.components(separatedBy: ":").map { $0.trimmingCharacters(in: .whitespaces) }
-		guard data[0].lowercased() == "content-disposition"
-		else { fatalError("Unexpected line") }
+		guard data.count == 2
+		else { throw Error.invalidHeader(line) }
+
+		let name = data[0]
 
 		let s2 = data[1].components(separatedBy: ";").map { $0.trimmingCharacters(in: .whitespaces) }
-
-		guard s2[0] == "form-data"
-		else { fatalError("Line formatted incorrectly") }
+		let value = s2[0]
 
 		let kvPairs: [(String, String)] = s2[1...].map {
 			let pairs = $0.components(separatedBy: "=")
@@ -106,9 +173,6 @@ actor MultipartHandler {
 		}
 		let properties = Dictionary(uniqueKeysWithValues: kvPairs)
 
-		guard let name = properties["name"]
-		else { fatalError("Name of property missing") }
-
-		return .init(contentDisposition: s2[0], name: name, contentType: nil)
+		return .init(name: name, value: value, properties: properties)
 	}
 }
