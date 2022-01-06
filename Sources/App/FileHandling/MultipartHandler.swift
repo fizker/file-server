@@ -1,10 +1,10 @@
 import Vapor
 
-extension AsyncStream where Element == UInt8 {
+extension AsyncThrowingStream where Element == UInt8 {
 	var asData: Data {
-		get async {
+		get async throws {
 			var data = Data()
-			for await byte in self {
+			for try await byte in self {
 				data.append(byte)
 			}
 			return data
@@ -85,28 +85,37 @@ actor MultipartHandler {
 	}
 
 	func parse(_ body: Request.Body, eventLoop: EventLoop) async throws -> MultipartRequest {
-		let data: Data = try await withCheckedThrowingContinuation({ c in
-			var data = Data()
-
+		let stream = AsyncThrowingStream<UInt8, Swift.Error> { c in
 			body.drain { (body: BodyStreamResult) in
 				switch body {
 				case .end:
-					c.resume(returning: data)
+					c.finish()
 				case let .error(error):
-					c.resume(throwing: error)
+					c.finish(throwing: error)
 				case let .buffer(buffer):
 					let d = Data(buffer: buffer)
-					data.append(d)
+					for byte in d {
+						c.yield(byte)
+					}
 				}
 
 				return eventLoop.future()
 			}
-		})
+		}
 
-		return try await parse(data)
+		return try await parse(stream)
 	}
 
 	func parse(_ data: Data) async throws -> MultipartRequest {
+		try await parse(AsyncThrowingStream {
+			for byte in data {
+				$0.yield(byte)
+			}
+			$0.finish()
+		})
+	}
+
+	func parse(_ data: AsyncThrowingStream<UInt8, Swift.Error>) async throws -> MultipartRequest {
 		let parser = DataParser(data: data)
 
 		guard
@@ -151,12 +160,12 @@ actor MultipartHandler {
 				))
 				guard let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!)
 				else { throw Error.invalidContent(name) }
-				let data = await stream.asData
+				let data = try await stream.asData
 				try await file.write(data)
 			} else {
 				guard
 					let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!),
-					let value = String(data: await stream.asData, encoding: .utf8)
+					let value = String(data: try await stream.asData, encoding: .utf8)
 				else { throw Error.invalidContent(name) }
 				content = .value(value)
 			}

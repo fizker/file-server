@@ -6,15 +6,15 @@ class DataParser {
 		case couldNotParseLine(Data)
 	}
 
-	let data: AsyncStream<UInt8>
+	let data: AsyncThrowingStream<UInt8, Swift.Error>
 	var isFinished = false
 
-	init(data: AsyncStream<UInt8>) {
+	init(data: AsyncThrowingStream<UInt8, Swift.Error>) {
 		self.data = data
 	}
 
 	convenience init(data: Data) {
-		self.init(data: AsyncStream {
+		self.init(data: AsyncThrowingStream {
 			for byte in data {
 				$0.yield(byte)
 			}
@@ -26,7 +26,7 @@ class DataParser {
 		guard let stream = readData(until: "\n".data(using: .utf8)!.first!)
 		else { return nil }
 
-		let data = await stream.asData
+		let data = try await stream.asData
 
 		guard let line = String(data: data, encoding: encoding)
 		else { throw Error.couldNotParseLine(data) }
@@ -34,12 +34,12 @@ class DataParser {
 		return line
 	}
 
-	func readData(until boundary: UInt8) -> AsyncStream<UInt8>? {
+	func readData(until boundary: UInt8) -> AsyncThrowingStream<UInt8, Swift.Error>? {
 		guard !isFinished
 		else { return nil }
 
-		return AsyncStream {
-			for await byte in self.data {
+		return AsyncThrowingStream {
+			for try await byte in self.data {
 				guard byte != boundary
 				else { return nil }
 
@@ -51,7 +51,7 @@ class DataParser {
 		}
 	}
 
-	func readData<T: Sequence>(until boundary: T) -> AsyncStream<UInt8>?
+	func readData<T: Sequence>(until boundary: T) -> AsyncThrowingStream<UInt8, Swift.Error>?
 		where T.Element == UInt8
 	{
 		guard !isFinished
@@ -64,12 +64,12 @@ class DataParser {
 
 		var window = Deque<UInt8>()
 
-		return AsyncStream {
+		return AsyncThrowingStream {
 			if window == boundary {
 				return nil
 			}
 
-			for await b in self.data {
+			for try await b in self.data {
 				window.append(b)
 
 				if window.count > boundary.count {

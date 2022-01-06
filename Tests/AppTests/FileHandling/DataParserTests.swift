@@ -1,8 +1,8 @@
 @testable import App
 import XCTest
 
-func XCTAssertEqual(_ expected: String, _ actual: AsyncStream<UInt8>?, encoding: String.Encoding, file: StaticString = #file, line: UInt = #line) async {
-	XCTAssertEqual(expected, await actual?.asData, encoding: encoding, file: file, line: line)
+func XCTAssertEqual(_ expected: String, _ actual: AsyncThrowingStream<UInt8, Error>?, encoding: String.Encoding, file: StaticString = #file, line: UInt = #line) async throws {
+	XCTAssertEqual(expected, try await actual?.asData, encoding: encoding, file: file, line: line)
 }
 
 func XCTAssertEqual(_ expected: String, _ actual: Data?, encoding: String.Encoding, file: StaticString = #file, line: UInt = #line) {
@@ -51,17 +51,17 @@ final class DataParserTests: XCTestCase {
 
 		let subject = DataParser(data: input.data(using: .utf8)!)
 
-		await XCTAssertEqual(
+		try await XCTAssertEqual(
 			"\(firstPart)\n",
 			subject.readData(until: "foobar".data(using: .utf8)!),
 			encoding: .utf8
 		)
-		await XCTAssertEqual(
+		try await XCTAssertEqual(
 			"\n\(secondPart)\n",
 			subject.readData(until: "foobar".data(using: .utf8)!),
 			encoding: .utf8
 		)
-		await XCTAssertEqual(
+		try await XCTAssertEqual(
 			"\n\(thirdPart)",
 			subject.readData(until: "foobar".data(using: .utf8)!),
 			encoding: .utf8
