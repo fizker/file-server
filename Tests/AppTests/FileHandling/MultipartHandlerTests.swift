@@ -64,6 +64,68 @@ final class MultipartHandlerTests: XCTestCase {
 		XCTAssertTrue(await subject.files.isEmpty)
 	}
 
+	func test__parse__bodyDoesNotStartWithBoundary__throws() async throws {
+		let boundary = "foobar"
+		let input = """
+		Content-Disposition: form-data; name="foo"
+
+		first content
+		--\(boundary)--
+		"""
+
+		let subject = try MultipartHandler(boundary: boundary)
+
+		do {
+			try await subject.parse(input.data(using: .utf8)!)
+			XCTFail("Should have thrown")
+		} catch MultipartHandler.Error.invalidFormattedData {
+			// Expected error
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+	}
+
+	func test__parse__bodyIsMissingFinalBoundary__throws() async throws {
+		let boundary = "foobar"
+		let input = """
+		--\(boundary)
+		Content-Disposition: form-data; name="foo"
+
+		first content
+		"""
+
+		let subject = try MultipartHandler(boundary: boundary)
+
+		do {
+			try await subject.parse(input.data(using: .utf8)!)
+			XCTFail("Should have thrown")
+		} catch MultipartHandler.Error.invalidFormattedData {
+			// Expected error
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+	}
+
+	func test__parse__contentIsMissing__throws() async throws {
+		let boundary = "foobar"
+		let input = """
+		--\(boundary)
+		Content-Disposition: form-data; name="foo"
+		--\(boundary)--
+		"""
+
+		let subject = try MultipartHandler(boundary: boundary)
+
+		do {
+			try await subject.parse(input.data(using: .utf8)!)
+			XCTFail("Should have thrown")
+		} catch MultipartHandler.Error.invalidFormattedData {
+			// Expected error
+		} catch {
+			XCTFail("Unexpected error: \(error)")
+		}
+	}
+
 	func XCTAssertEqual<T: Equatable>(_ expected: T, _ actual: T, file: StaticString = #file, line: UInt = #line) {
 		AssertEqual(expected, actual, file: file, line: line)
 	}
