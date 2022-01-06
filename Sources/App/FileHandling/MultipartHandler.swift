@@ -1,5 +1,17 @@
 import Vapor
 
+extension AsyncStream where Element == UInt8 {
+	var asData: Data {
+		get async {
+			var data = Data()
+			for await byte in self {
+				data.append(byte)
+			}
+			return data
+		}
+	}
+}
+
 struct MultipartRequest {
 	struct File {
 		var contentType: String
@@ -98,7 +110,7 @@ actor MultipartHandler {
 		let parser = DataParser(data: data)
 
 		guard
-			let firstLine = try parser.readLine(),
+			let firstLine = try await parser.readLine(),
 			firstLine == "--\(boundary)"
 		else { throw Error.invalidFormattedData }
 
@@ -109,7 +121,7 @@ actor MultipartHandler {
 			var headers: [MultipartRequest.Header] = []
 
 			while true {
-				guard let line = try parser.readLine()
+				guard let line = try await parser.readLine()
 				else { throw Error.invalidFormattedData }
 
 				guard line != ""
@@ -137,13 +149,14 @@ actor MultipartHandler {
 					contentType: contentType.value,
 					file: file
 				))
-				guard let data = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!)
+				guard let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!)
 				else { throw Error.invalidContent(name) }
+				let data = await stream.asData
 				try await file.write(data)
 			} else {
 				guard
-					let data = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!),
-					let value = String(data: data, encoding: .utf8)
+					let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!),
+					let value = String(data: await stream.asData, encoding: .utf8)
 				else { throw Error.invalidContent(name) }
 				content = .value(value)
 			}
@@ -155,7 +168,7 @@ actor MultipartHandler {
 				content: content
 			))
 
-			let remainingLine = try parser.readLine()
+			let remainingLine = try await parser.readLine()
 			isComplete = remainingLine == "--"
 		} while !isComplete
 
