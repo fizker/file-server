@@ -67,19 +67,7 @@ func routes(_ app: Application) throws {
 	}
 
 	if #available(macOS 12, *) {
-		app.on(.POST, "test", body: .stream) { req -> String in
-			let file = try await StreamFile(req: req)
-			let path = "/Users/benjamin/Development/own/file-server/temp123"
-			try await file.setPath(path)
-
-			func write(_ value: String) async throws {
-				let data = value.data(using: .utf8)!
-				try await file.write(data)
-			}
-
-			try await write("foo")
-			try await write("bar")
-
+		app.on(.POST, "test-echo", body: .stream) { req -> String in
 			let data = try await withCheckedThrowingContinuation({ (c: CheckedContinuation<Data, Error>) in
 				var data = Data()
 
@@ -98,12 +86,43 @@ func routes(_ app: Application) throws {
 				}
 			})
 
-			print("finished stream")
-
 			let content = String(data: data, encoding: .utf8)!
-			print(content)
+			return content
+		}
 
-			try await file.close()
+		app.on(.POST, "test", body: .stream) { req -> String in
+			guard let contentType = req.content.contentType
+			else { return "error content type missing" }
+
+			let handler = try MultipartHandler(
+				contentType: contentType,
+				fileStreamFactory: { try await StreamFile(req: req) }
+			)
+
+			let multipartRequest = try await handler.parse(req.body, eventLoop: req.eventLoop)
+
+			let fm = FileManager.default
+			let basePath = URL(fileURLWithPath: uploadFolder + "/")
+
+			for value in multipartRequest.values {
+				switch value.content {
+				case let .file(file):
+					guard
+						let filename = value.contentDisposition.properties["filename"],
+						!filename.isEmpty
+					else {
+						try await file.file.close()
+						continue
+					}
+
+					let resultPath = basePath.appendingPathComponent(filename)
+					try? fm.removeItem(at: resultPath)
+					try fm.moveItem(at: file.file.fileURL, to: resultPath)
+					try await file.file.close()
+				case .value(_):
+					break
+				}
+			}
 
 			return "finished"
 		}

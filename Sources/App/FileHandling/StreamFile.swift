@@ -3,6 +3,8 @@ import NIOCore
 import Vapor
 
 protocol FileStream {
+	var filePath: String { get }
+	var fileURL: URL { get }
 	func write(_ stream: AsyncThrowingStream<UInt8, Error>) async throws
 	func close() async throws
 }
@@ -32,35 +34,21 @@ actor StreamFile: FileStream {
 		case existingFileAtPath
 	}
 
-	private let tempPath = "/tmp/file-upload-\(UUID().uuidString)"
-	private let tempURL: URL
+	let filePath = "/tmp/file-upload-\(UUID().uuidString)"
+	let fileURL: URL
 	private var handle: NIOFileHandle?
 	private var req: Request
-	private let fm = FileManager.default
-
-	var path: URL?
 
 	init(req: Request) async throws {
 		self.req = req
-		tempURL = URL(fileURLWithPath: tempPath)
-		try Data().write(to: tempURL)
+		fileURL = URL(fileURLWithPath: filePath)
+		try Data().write(to: fileURL)
 
 		handle = try await req.application.fileio.openFile(
-			path: tempPath,
+			path: filePath,
 			mode: [ .read, .write ],
 			eventLoop: req.eventLoop.next()
 		).get()
-	}
-
-	func setPath(_ path: String) throws {
-		try setPath(URL(fileURLWithPath: path))
-	}
-
-	func setPath(_ path: URL) throws {
-		self.path = path
-		if fm.fileExists(atPath: path.path) {
-			throw Error.existingFileAtPath
-		}
 	}
 
 	func write(_ stream: AsyncThrowingStream<UInt8, Swift.Error>) async throws {
@@ -95,11 +83,6 @@ actor StreamFile: FileStream {
 	func _close() throws {
 		try handle?.close()
 		handle = nil
-
-		if let path = path {
-			try fm.moveItem(at: URL(fileURLWithPath: tempPath), to: path)
-		}
-		path = nil
 	}
 
 	deinit {

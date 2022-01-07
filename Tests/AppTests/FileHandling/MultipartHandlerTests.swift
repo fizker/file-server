@@ -12,6 +12,8 @@ func AssertTrue(_ value: Bool, file: StaticString = #file, line: UInt = #line) {
 final class FakeFileStream: FileStream {
 	var data = Data()
 	var isClosed = false
+	let fileURL = URL(fileURLWithPath: "/")
+	let filePath = ""
 
 	func write(_ stream: AsyncThrowingStream<UInt8, Swift.Error>) async throws {
 		data.append(try await stream.asData)
