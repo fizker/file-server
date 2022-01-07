@@ -160,8 +160,9 @@ actor MultipartHandler {
 				))
 				guard let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!)
 				else { throw Error.invalidContent(name) }
-				let data = try await stream.asData
-				try await file.write(data)
+				for try await byte in stream {
+					try await file.write(byte)
+				}
 			} else {
 				guard
 					let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!),

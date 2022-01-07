@@ -13,8 +13,8 @@ final class FakeFileStream: FileStream {
 	var data = Data()
 	var isClosed = false
 
-	func write(_ buffer: ByteBuffer) async throws {
-		data.append(Data(buffer: buffer))
+	func write(_ stream: AsyncThrowingStream<UInt8, Swift.Error>) async throws {
+		data.append(try await stream.asData)
 	}
 
 	func close() async throws {

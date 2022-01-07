@@ -3,13 +3,26 @@ import NIOCore
 import Vapor
 
 protocol FileStream {
-	func write(_ buffer: ByteBuffer) async throws
+	func write(_ stream: AsyncThrowingStream<UInt8, Error>) async throws
 	func close() async throws
 }
 extension FileStream {
-	func write(_ data: Data) async throws {
-		let buffer = ByteBuffer(data: data)
+	func write(_ buffer: ByteBuffer) async throws {
+		try await write(Data(buffer: buffer))
+	}
+
+	func write(_ byte: UInt8) async throws {
+		let buffer = ByteBuffer(bytes: [byte])
 		try await write(buffer)
+	}
+
+	func write(_ data: Data) async throws {
+		try await write(AsyncThrowingStream {
+			for byte in data {
+				$0.yield(byte)
+			}
+			$0.finish()
+		})
 	}
 }
 
@@ -50,15 +63,29 @@ actor StreamFile: FileStream {
 		}
 	}
 
-	func write(_ buffer: ByteBuffer) async throws {
+	func write(_ stream: AsyncThrowingStream<UInt8, Swift.Error>) async throws {
 		guard let handle = handle
 		else { throw Error.alreadyClosed }
 
-		try await req.application.fileio.write(
-			fileHandle: handle,
-			buffer: buffer,
-			eventLoop: req.eventLoop.next()
-		).get()
+		func write(_ data: Data) async throws {
+			let buffer = ByteBuffer(data: data)
+
+			try await req.application.fileio.write(
+				fileHandle: handle,
+				buffer: buffer,
+				eventLoop: req.eventLoop.next()
+			).get()
+		}
+
+		var data = Data()
+		for try await byte in stream {
+			data.append(byte)
+			if data.count > 1023 {
+				try await write(data)
+				data = Data()
+			}
+		}
+		try await write(data)
 	}
 
 	func close() async throws {
