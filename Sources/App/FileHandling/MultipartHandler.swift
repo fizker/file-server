@@ -52,7 +52,7 @@ struct MultipartRequest {
 }
 
 actor MultipartHandler {
-	typealias FileStreamFactory = () -> FileStream
+	typealias FileStreamFactory = () async throws -> FileStream
 	enum Error: Swift.Error {
 		case invalidContentType
 		case boundaryMissing
@@ -153,7 +153,7 @@ actor MultipartHandler {
 
 			let contentType = headers.first { $0.is("content-type") }
 			if let contentType = contentType {
-				let file = fileStreamFactory()
+				let file = try await fileStreamFactory()
 				content = .file(.init(
 					contentType: contentType.value,
 					file: file
