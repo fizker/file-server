@@ -31,7 +31,10 @@ class DataParser {
 		guard let line = String(data: data, encoding: encoding)
 		else { throw Error.couldNotParseLine(data) }
 
-		return line
+		guard line.last == "\r"
+		else { return line }
+
+		return line.trimmingCharacters(in: .newlines)
 	}
 
 	func readData(until boundary: UInt8) -> AsyncThrowingStream<UInt8, Swift.Error>? {

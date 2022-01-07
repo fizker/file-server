@@ -235,6 +235,54 @@ final class MultipartHandlerTests: XCTestCase {
 		}
 	}
 
+	func test__parse__bodyHasTwoValues_headersAreUsingCRLF__valuesAreRead() async throws {
+		let boundary = "foobar"
+		let input = """
+		--\(boundary)\r
+		Content-Disposition: form-data; name="foo"\r
+		\r
+		first content
+		--\(boundary)\r
+		Content-Disposition: form-data; name="bar"\r
+		\r
+		second content
+		with multiple
+		lines
+
+		of content
+		--\(boundary)--
+		"""
+
+		let subject = try MultipartHandler(boundary: boundary)
+
+		let request = try await subject.parse(input.data(using: .utf8)!)
+
+		var hasFiles = false
+		var values: [String: String] = [:]
+
+		for value in request.values {
+			switch value.content {
+			case let .value(content):
+				values[value.name] = content
+			case .file(_):
+				hasFiles = true
+			}
+		}
+
+		XCTAssertEqual([
+			"foo": "first content",
+			"bar": """
+			second content
+			with multiple
+			lines
+
+			of content
+			""",
+		], values)
+
+		XCTAssertFalse(hasFiles)
+	}
+
 	// This exists because @autoclosure does not work with async values, so the built-in XCTAssertEqual cannot be used to verify data on actors
 	func XCTAssertEqual<T: Equatable>(_ expected: T, _ actual: T, file: StaticString = #file, line: UInt = #line) {
 		AssertEqual(expected, actual, file: file, line: line)
