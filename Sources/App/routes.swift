@@ -5,10 +5,6 @@ struct FileUpload: Decodable {
 	var file: [File]
 }
 
-enum ConfigurationError: Error {
-	case uploadFolderMissing
-}
-
 func routes(_ app: Application) throws {
 	let uploadFolder = try app.envVars.uploadFolder
 
@@ -66,71 +62,36 @@ func routes(_ app: Application) throws {
 		)
 	}
 
-	if #available(macOS 12, *) {
-		app.on(.POST, "test-echo", body: .stream) { req -> String in
-			let data = try await withCheckedThrowingContinuation({ (c: CheckedContinuation<Data, Error>) in
-				var data = Data()
+	app.on(.POST, body: .stream) { req -> String in
+		guard let contentType = req.content.contentType
+		else { return "error content type missing" }
 
-				req.body.drain { (body: BodyStreamResult) in
-					switch body {
-					case .end:
-						c.resume(returning: data)
-					case let .error(error):
-						c.resume(throwing: error)
-					case let .buffer(buffer):
-						let d = Data(buffer: buffer)
-						data.append(d)
-					}
+		let handler = try MultipartHandler(
+			contentType: contentType,
+			fileStreamFactory: { try await StreamFile(req: req) }
+		)
 
-					return req.eventLoop.future()
-				}
-			})
+		let multipartRequest = try await handler.parse(req.body, eventLoop: req.eventLoop)
 
-			let content = String(data: data, encoding: .utf8)!
-			return content
-		}
+		let fm = FileManager.default
+		let basePath = URL(fileURLWithPath: uploadFolder + "/")
 
-		app.on(.POST, "test", body: .stream) { req -> String in
-			guard let contentType = req.content.contentType
-			else { return "error content type missing" }
+		for value in multipartRequest.values {
+			switch value.content {
+			case let .file(file):
+				guard
+					let filename = value.contentDisposition.properties["filename"],
+					!filename.isEmpty
+				else { continue }
 
-			let handler = try MultipartHandler(
-				contentType: contentType,
-				fileStreamFactory: { try await StreamFile(req: req) }
-			)
-
-			let multipartRequest = try await handler.parse(req.body, eventLoop: req.eventLoop)
-
-			let fm = FileManager.default
-			let basePath = URL(fileURLWithPath: uploadFolder + "/")
-
-			for value in multipartRequest.values {
-				switch value.content {
-				case let .file(file):
-					guard
-						let filename = value.contentDisposition.properties["filename"],
-						!filename.isEmpty
-					else { continue }
-
-					let resultPath = basePath.appendingPathComponent(filename)
-					try? fm.removeItem(at: resultPath)
-					try fm.moveItem(at: file.temporaryURL, to: resultPath)
-				case .value(_):
-					break
-				}
+				let resultPath = basePath.appendingPathComponent(filename)
+				try? fm.removeItem(at: resultPath)
+				try fm.moveItem(at: file.temporaryURL, to: resultPath)
+			case .value(_):
+				break
 			}
-
-			return "finished"
 		}
-	}
 
-	app.on(.POST, body: .collect(maxSize: app.envVars.maxUploadSize)) { req -> EventLoopFuture<String> in
-		let dto = try req.content.decode(FileUpload.self)
-
-		return EventLoopFuture.andAllComplete(dto.file.map { file -> EventLoopFuture<Void> in
-			let path = "\(uploadFolder)/\(file.filename)"
-			return req.fileio.writeFile(file.data, at: path)
-		}, on: req.eventLoop.next())
-		.map { "thanks" }
+		return "thanks"
 	}
 }
