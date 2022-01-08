@@ -15,7 +15,7 @@ extension AsyncThrowingStream where Element == UInt8 {
 struct MultipartRequest {
 	struct File {
 		var contentType: String
-		var file: FileStream
+		var temporaryURL: URL
 	}
 
 	struct Header {
@@ -154,15 +154,16 @@ actor MultipartHandler {
 			let contentType = headers.first { $0.is("content-type") }
 			if let contentType = contentType {
 				let file = try await fileStreamFactory()
-				content = .file(.init(
-					contentType: contentType.value,
-					file: file
-				))
 				guard let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!)
 				else { throw Error.invalidContent(name) }
 				for try await byte in stream {
 					try await file.write(byte)
 				}
+				content = .file(.init(
+					contentType: contentType.value,
+					temporaryURL: file.url
+				))
+				try await file.close()
 			} else {
 				guard
 					let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!),

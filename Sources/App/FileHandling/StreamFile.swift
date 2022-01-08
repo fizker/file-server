@@ -3,8 +3,8 @@ import NIOCore
 import Vapor
 
 protocol FileStream {
-	var filePath: String { get }
-	var fileURL: URL { get }
+	var path: String { get }
+	var url: URL { get }
 	func write(_ stream: AsyncThrowingStream<UInt8, Error>) async throws
 	func close() async throws
 }
@@ -34,18 +34,18 @@ actor StreamFile: FileStream {
 		case existingFileAtPath
 	}
 
-	let filePath = "/tmp/file-upload-\(UUID().uuidString)"
-	let fileURL: URL
+	let path = "/tmp/file-upload-\(UUID().uuidString)"
+	let url: URL
 	private var handle: NIOFileHandle?
 	private var req: Request
 
 	init(req: Request) async throws {
 		self.req = req
-		fileURL = URL(fileURLWithPath: filePath)
-		try Data().write(to: fileURL)
+		url = URL(fileURLWithPath: path)
+		try Data().write(to: url)
 
 		handle = try await req.application.fileio.openFile(
-			path: filePath,
+			path: path,
 			mode: [ .read, .write ],
 			eventLoop: req.eventLoop.next()
 		).get()

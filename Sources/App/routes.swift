@@ -110,15 +110,11 @@ func routes(_ app: Application) throws {
 					guard
 						let filename = value.contentDisposition.properties["filename"],
 						!filename.isEmpty
-					else {
-						try await file.file.close()
-						continue
-					}
+					else { continue }
 
 					let resultPath = basePath.appendingPathComponent(filename)
 					try? fm.removeItem(at: resultPath)
-					try fm.moveItem(at: file.file.fileURL, to: resultPath)
-					try await file.file.close()
+					try fm.moveItem(at: file.temporaryURL, to: resultPath)
 				case .value(_):
 					break
 				}

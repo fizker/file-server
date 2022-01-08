@@ -12,8 +12,8 @@ func AssertTrue(_ value: Bool, file: StaticString = #file, line: UInt = #line) {
 final class FakeFileStream: FileStream {
 	var data = Data()
 	var isClosed = false
-	let fileURL = URL(fileURLWithPath: "/")
-	let filePath = ""
+	let url = URL(fileURLWithPath: "/\(UUID())")
+	var path: String { url.absoluteString }
 
 	func write(_ stream: AsyncThrowingStream<UInt8, Swift.Error>) async throws {
 		data.append(try await stream.asData)
@@ -24,21 +24,29 @@ final class FakeFileStream: FileStream {
 	}
 }
 
-extension MultipartHandler {
-	convenience init(boundary: String) throws {
+final class MultipartHandlerTests: XCTestCase {
+	var files: [URL: FakeFileStream] = [:]
+
+	override func setUp() async throws {
+		files = [:]
+	}
+
+	func MultipartHandler(boundary: String) throws -> MultipartHandler {
 		var contentType = HTTPMediaType(type: "multipart", subType: "form-data")
 		contentType.parameters["boundary"] = boundary
 
-		try self.init(contentType: contentType, fileStreamFactory: FakeFileStream.init)
+		return try App.MultipartHandler(contentType: contentType, fileStreamFactory: {
+			let stream = FakeFileStream()
+			self.files[stream.url] = stream
+			return stream
+		})
 	}
-}
 
-final class MultipartHandlerTests: XCTestCase {
 	func test__init__contentTypeIsMultipartFormData_boundaryIsPresent__isInit() async throws {
 		var contentType = HTTPMediaType(type: "multipart", subType: "form-data")
 		contentType.parameters["boundary"] = "foo"
 
-		let subject = try MultipartHandler(contentType: contentType, fileStreamFactory: FakeFileStream.init)
+		let subject = try App.MultipartHandler(contentType: contentType, fileStreamFactory: FakeFileStream.init)
 
 		XCTAssertEqual("foo", await subject.testBoundary)
 	}
@@ -224,7 +232,7 @@ final class MultipartHandlerTests: XCTestCase {
 
 		switch value?.content {
 		case let .file(file):
-			let fakeFile = file.file as? FakeFileStream
+			let fakeFile = files[file.temporaryURL]
 			XCTAssertEqual("application/json", file.contentType)
 			XCTAssertEqual("""
 			{
