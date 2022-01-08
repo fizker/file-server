@@ -4,12 +4,13 @@ import PackageDescription
 let package = Package(
 	name: "file-server",
 	platforms: [
-		.macOS(.v10_15),
+		.macOS(.v12),
 	],
 	dependencies: [
 		// 💧 A server-side Swift web framework.
 		.package(url: "https://github.com/vapor/vapor.git", from: "4.54.0"),
 		.package(url: "https://github.com/fizker/swift-environment-variables.git", from: "1.0.0"),
+		.package(url: "https://github.com/apple/swift-collections.git", from: "1.0.2"),
 	],
 	targets: [
 		.target(
@@ -17,6 +18,7 @@ let package = Package(
 			dependencies: [
 				.product(name: "Vapor", package: "vapor"),
 				.product(name: "EnvironmentVariables", package: "swift-environment-variables"),
+				.product(name: "Collections", package: "swift-collections"),
 			],
 			swiftSettings: [
 				// Enable better optimizations when building in Release configuration. Despite the use of

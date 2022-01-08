@@ -1,11 +1,8 @@
 import Vapor
+import Foundation
 
 struct FileUpload: Decodable {
 	var file: [File]
-}
-
-enum ConfigurationError: Error {
-	case uploadFolderMissing
 }
 
 func routes(_ app: Application) throws {
@@ -65,13 +62,36 @@ func routes(_ app: Application) throws {
 		)
 	}
 
-	app.on(.POST, body: .collect(maxSize: app.envVars.maxUploadSize)) { req -> EventLoopFuture<String> in
-		let dto = try req.content.decode(FileUpload.self)
+	app.on(.POST, body: .stream) { req -> String in
+		guard let contentType = req.content.contentType
+		else { return "error content type missing" }
 
-		return EventLoopFuture.andAllComplete(dto.file.map { file -> EventLoopFuture<Void> in
-			let path = "\(uploadFolder)/\(file.filename)"
-			return req.fileio.writeFile(file.data, at: path)
-		}, on: req.eventLoop.next())
-		.map { "thanks" }
+		let handler = try MultipartHandler(
+			contentType: contentType,
+			fileStreamFactory: { try await StreamFile(req: req) }
+		)
+
+		let multipartRequest = try await handler.parse(req.body, eventLoop: req.eventLoop)
+
+		let fm = FileManager.default
+		let basePath = URL(fileURLWithPath: uploadFolder + "/")
+
+		for value in multipartRequest.values {
+			switch value.content {
+			case let .file(file):
+				guard
+					let filename = value.contentDisposition.properties["filename"],
+					!filename.isEmpty
+				else { continue }
+
+				let resultPath = basePath.appendingPathComponent(filename)
+				try? fm.removeItem(at: resultPath)
+				try fm.moveItem(at: file.temporaryURL, to: resultPath)
+			case .value(_):
+				break
+			}
+		}
+
+		return "thanks"
 	}
 }
