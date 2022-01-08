@@ -156,9 +156,7 @@ actor MultipartHandler {
 				let file = try await fileStreamFactory()
 				guard let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!)
 				else { throw Error.invalidContent(name) }
-				for try await byte in stream {
-					try await file.write(byte)
-				}
+				try await file.write(stream)
 				content = .file(.init(
 					contentType: contentType.value,
 					temporaryURL: file.url

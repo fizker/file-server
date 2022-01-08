@@ -36,11 +36,13 @@ actor StreamFile: FileStream {
 
 	let path = "/tmp/file-upload-\(UUID().uuidString)"
 	let url: URL
+	let bufferSize: Int
 	private var handle: NIOFileHandle?
 	private var req: Request
 
-	init(req: Request) async throws {
+	init(req: Request, bufferSize: Int = 10_000) async throws {
 		self.req = req
+		self.bufferSize = bufferSize
 		url = URL(fileURLWithPath: path)
 		try Data().write(to: url)
 
@@ -68,7 +70,7 @@ actor StreamFile: FileStream {
 		var data = Data()
 		for try await byte in stream {
 			data.append(byte)
-			if data.count > 1023 {
+			if data.count > bufferSize {
 				try await write(data)
 				data = Data()
 			}
