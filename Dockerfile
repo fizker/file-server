@@ -19,6 +19,12 @@ WORKDIR /build
 COPY ./Package.* ./
 RUN swift package resolve
 
+# Pre-Build everything, to cache building the dependencies
+RUN mkdir -p Sources/App Sources/Run Tests/AppTests \
+	&& touch Sources/App/File.swift Tests/AppTests/File.swift \
+	&& echo 'print("foo")' > Sources/Run/main.swift
+RUN swift build --enable-test-discovery -c release
+
 # Copy entire repo into container
 COPY . .
 
