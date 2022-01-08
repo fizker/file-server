@@ -40,7 +40,7 @@ actor StreamFile: FileStream {
 	private var handle: NIOFileHandle?
 	private var req: Request
 
-	init(req: Request, bufferSize: Int = 10_000) async throws {
+	init(req: Request, bufferSize: Int = 1_000_000) async throws {
 		self.req = req
 		self.bufferSize = bufferSize
 		url = URL(fileURLWithPath: path)
