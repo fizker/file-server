@@ -13,6 +13,7 @@ func routes(_ app: Application) throws {
 			headers: ["content-type": "text/html"],
 			body: """
 			<!doctype html>
+			<meta name="viewport" content="width=device-width, initial-scale=1">
 			<title>Upload files</title>
 			<style>
 				.file {
