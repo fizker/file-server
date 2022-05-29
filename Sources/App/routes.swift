@@ -21,6 +21,13 @@ func routes(_ app: Application) throws {
 				.file {
 					display: block;
 				}
+
+				@media (prefers-color-scheme: dark) {
+					body {
+						background: #333;
+						color: white;
+					}
+				}
 			</style>
 
 			\(message.map({ """
