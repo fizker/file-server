@@ -8,10 +8,12 @@ struct FileUpload: Decodable {
 func routes(_ app: Application) throws {
 	let uploadFolder = try app.envVars.uploadFolder
 
-	app.get { req in
+	app.get { req -> Response in
+		let message = try? req.query.get(String.self, at: "m")
+
 		return Response(
 			headers: ["content-type": "text/html"],
-			body: """
+			body: .init(string: """
 			<!doctype html>
 			<meta name="viewport" content="width=device-width, initial-scale=1">
 			<title>Upload files</title>
@@ -20,6 +22,13 @@ func routes(_ app: Application) throws {
 					display: block;
 				}
 			</style>
+
+			\(message.map({ """
+				<div>
+					\($0)
+				</div>
+				""" }) ?? "")
+
 			<form method="post" action="/" enctype="multipart/form-data">
 				<button type="submit">Upload</button>
 			</form>
@@ -59,13 +68,13 @@ func routes(_ app: Application) throws {
 
 				addFile()
 			</script>
-			"""
+			""")
 		)
 	}
 
-	app.on(.POST, body: .stream) { req -> String in
+	app.on(.POST, body: .stream) { req -> Response in
 		guard let contentType = req.content.contentType
-		else { return "error content type missing" }
+		else { return req.redirect(to: "/?m=error content type missing") }
 
 		let handler = try MultipartHandler(
 			contentType: contentType,
@@ -77,6 +86,8 @@ func routes(_ app: Application) throws {
 		let fm = FileManager.default
 		let basePath = URL(fileURLWithPath: uploadFolder + "/")
 
+		var fileCount = 0
+
 		for value in multipartRequest.values {
 			switch value.content {
 			case let .file(file):
@@ -84,6 +95,8 @@ func routes(_ app: Application) throws {
 					let filename = value.contentDisposition.properties["filename"],
 					!filename.isEmpty
 				else { continue }
+
+				fileCount += 1
 
 				let resultPath = basePath.appendingPathComponent(filename)
 				try? fm.removeItem(at: resultPath)
@@ -93,6 +106,14 @@ func routes(_ app: Application) throws {
 			}
 		}
 
-		return "thanks"
+		let message: String
+		switch fileCount {
+		case 0:
+			message = "No files submitted"
+		default:
+			message = "File\(fileCount == 1 ? "" : "s") uploaded"
+		}
+
+		return req.redirect(to: "/?m=\(message)")
 	}
 }
