@@ -7,18 +7,17 @@ let package = Package(
 		.macOS(.v12),
 	],
 	dependencies: [
-		// 💧 A server-side Swift web framework.
-		.package(url: "https://github.com/vapor/vapor.git", from: "4.54.0"),
-		.package(url: "https://github.com/fizker/swift-environment-variables.git", from: "1.0.0"),
-		.package(url: "https://github.com/apple/swift-collections.git", from: "1.0.2"),
+		.package(url: "https://github.com/apple/swift-collections.git", from: "1.1.2"),
+		.package(url: "https://github.com/fizker/swift-environment-variables.git", from: "1.1.1"),
+		.package(url: "https://github.com/vapor/vapor.git", from: "4.102.1"),
 	],
 	targets: [
 		.target(
 			name: "App",
 			dependencies: [
-				.product(name: "Vapor", package: "vapor"),
 				.product(name: "EnvironmentVariables", package: "swift-environment-variables"),
 				.product(name: "Collections", package: "swift-collections"),
+				.product(name: "Vapor", package: "vapor"),
 			],
 			swiftSettings: [
 				// Enable better optimizations when building in Release configuration. Despite the use of
