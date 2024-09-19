@@ -79,17 +79,13 @@ actor StreamFile: FileStream {
 	}
 
 	func close() async throws {
-		try _close()
-	}
-
-	func _close() throws {
 		try handle?.close()
 		handle = nil
 	}
 
 	deinit {
 		do {
-			try _close()
+			try handle?.close()
 		} catch {
 			print("Failed to close")
 		}
