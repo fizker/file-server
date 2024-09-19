@@ -1,16 +1,18 @@
 @testable import App
-import XCTest
+import Foundation
+import Testing
 
-func XCTAssertEqual(_ expected: String, _ actual: AsyncThrowingStream<UInt8, Error>?, encoding: String.Encoding, file: StaticString = #file, line: UInt = #line) async throws {
-	XCTAssertEqual(expected, try await actual?.asData, encoding: encoding, file: file, line: line)
+func read(stream: AsyncThrowingStream<UInt8, Error>?, encoding: String.Encoding) async throws -> String? {
+	return read(data: try await stream?.asData, encoding: encoding)
 }
 
-func XCTAssertEqual(_ expected: String, _ actual: Data?, encoding: String.Encoding, file: StaticString = #file, line: UInt = #line) {
-	XCTAssertEqual(expected, actual.flatMap { String(data: $0, encoding: encoding) }, file: file, line: line)
+func read(data: Data?, encoding: String.Encoding) -> String? {
+	return data.flatMap { String(data: $0, encoding: encoding) }
 }
 
-final class DataParserTests: XCTestCase {
-	func test__readLine__multipleLines__returnsTheLine() async throws {
+struct DataParserTests {
+	@Test
+	func readLine__multipleLines__returnsTheLine() async throws {
 		let input = """
 		foo
 		bar
@@ -20,16 +22,17 @@ final class DataParserTests: XCTestCase {
 		let subject = DataParser(data: input.data(using: .utf8)!)
 
 		let line1 = try await subject.readLine()
-		XCTAssertEqual("foo", line1)
+		#expect("foo" == line1)
 		let line2 = try await subject.readLine()
-		XCTAssertEqual("bar", line2)
+		#expect("bar" == line2)
 		let line3 = try await subject.readLine()
-		XCTAssertEqual("baz", line3)
+		#expect("baz" == line3)
 		let line4 = try await subject.readLine()
-		XCTAssertNil(line4)
+		#expect(line4 == nil)
 	}
 
-	func test__readData__multiByteBoundary__returnsTheData() async throws {
+	@Test
+	func readData__multiByteBoundary__returnsTheData() async throws {
 		let firstPart = """
 		foo
 		bar
@@ -51,21 +54,15 @@ final class DataParserTests: XCTestCase {
 
 		let subject = DataParser(data: input.data(using: .utf8)!)
 
-		try await XCTAssertEqual(
-			"\(firstPart)\n",
-			subject.readData(until: "foobar".data(using: .utf8)!),
-			encoding: .utf8
-		)
-		try await XCTAssertEqual(
-			"\n\(secondPart)\n",
-			subject.readData(until: "foobar".data(using: .utf8)!),
-			encoding: .utf8
-		)
-		try await XCTAssertEqual(
-			"\n\(thirdPart)",
-			subject.readData(until: "foobar".data(using: .utf8)!),
-			encoding: .utf8
-		)
-		XCTAssertNil(subject.readData(until: "foobar".data(using: .utf8)!))
+		let firstActual = try await read(stream: subject.readData(until: "foobar".data(using: .utf8)!), encoding: .utf8)
+		#expect("\(firstPart)\n" == firstActual)
+
+		let secondActual = try await read(stream: subject.readData(until: "foobar".data(using: .utf8)!), encoding: .utf8)
+		#expect("\n\(secondPart)\n" == secondActual)
+
+		let thirdActual = try await read(stream: subject.readData(until: "foobar".data(using: .utf8)!), encoding: .utf8)
+		#expect("\n\(thirdPart)" == thirdActual)
+
+		#expect(subject.readData(until: "foobar".data(using: .utf8)!) == nil)
 	}
 }

@@ -13,12 +13,12 @@ extension AsyncThrowingStream where Element == UInt8 {
 }
 
 struct MultipartRequest {
-	struct File {
+	struct File: Equatable {
 		var contentType: String
 		var temporaryURL: URL
 	}
 
-	struct Header {
+	struct Header: Equatable {
 		var name: String
 		var value: String
 		var properties: [String: String]
@@ -28,7 +28,7 @@ struct MultipartRequest {
 		}
 	}
 
-	enum Content {
+	enum Content: Equatable {
 		case file(File)
 		case value(String)
 	}
@@ -53,7 +53,7 @@ struct MultipartRequest {
 
 actor MultipartHandler {
 	typealias FileStreamFactory = () async throws -> FileStream
-	enum Error: Swift.Error {
+	enum Error: Swift.Error, Equatable {
 		case invalidContentType
 		case boundaryMissing
 		case invalidFormattedData
