@@ -20,6 +20,11 @@ func routes(_ app: Application) throws {
 			<style>
 				.file {
 					display: block;
+					margin-bottom: 20px;
+
+					& input {
+						width: 100%;
+					}
 				}
 
 				@media (prefers-color-scheme: dark) {
