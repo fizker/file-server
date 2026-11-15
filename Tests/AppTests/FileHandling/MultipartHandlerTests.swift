@@ -17,7 +17,7 @@ final class FakeFileStream: FileStream {
 	}
 }
 
-final class MultipartHandlerTests {
+final class MultipartHandlerTests: @unchecked Sendable {
 	var files: [URL: FakeFileStream] = [:]
 
 	func MultipartHandler(boundary: String) throws -> MultipartHandler {
