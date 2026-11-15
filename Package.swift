@@ -1,4 +1,4 @@
-// swift-tools-version:5.10
+// swift-tools-version:6.4
 import PackageDescription
 
 let package = Package(
@@ -7,9 +7,9 @@ let package = Package(
 		.macOS(.v12),
 	],
 	dependencies: [
-		.package(url: "https://github.com/apple/swift-collections.git", from: "1.1.2"),
-		.package(url: "https://github.com/fizker/swift-environment-variables.git", from: "1.1.1"),
-		.package(url: "https://github.com/vapor/vapor.git", from: "4.102.1"),
+		.package(url: "https://github.com/apple/swift-collections.git", from: "1.7.6"),
+		.package(url: "https://github.com/fizker/swift-environment-variables.git", from: "1.2.0"),
+		.package(url: "https://github.com/vapor/vapor.git", from: "4.122.3"),
 	],
 	targets: [
 		.target(

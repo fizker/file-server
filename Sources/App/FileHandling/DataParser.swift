@@ -1,7 +1,7 @@
 import Foundation
 import Collections
 
-class DataParser {
+final class DataParser: @unchecked Sendable {
 	enum Error: Swift.Error {
 		case couldNotParseLine(Data)
 	}
@@ -65,6 +65,8 @@ class DataParser {
 		guard !boundary.isEmpty
 		else { return nil }
 
+		// This is only ever read in the consumption of the stream, which is always done serially
+		nonisolated(unsafe)
 		var window = Deque<UInt8>()
 
 		return AsyncThrowingStream {

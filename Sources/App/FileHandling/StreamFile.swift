@@ -40,6 +40,7 @@ actor StreamFile: FileStream {
 	private var handle: NIOFileHandle?
 	private var req: Request
 
+	@diagnose(DeprecatedDeclaration, as: ignored, reason: "While NIO mentions that NonBlockingFileIO is deprected, their suggested replacement is unstable")
 	init(req: Request, bufferSize: Int = 1_000_000) async throws {
 		self.req = req
 		self.bufferSize = bufferSize
