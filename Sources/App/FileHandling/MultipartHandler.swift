@@ -106,7 +106,7 @@ actor MultipartHandler {
 		return try await parse(stream)
 	}
 
-	func parse(_ data: Data) async throws -> MultipartRequest {
+	func parse(_ data: some Sequence<UInt8>) async throws -> MultipartRequest {
 		try await parse(AsyncThrowingStream {
 			for byte in data {
 				$0.yield(byte)

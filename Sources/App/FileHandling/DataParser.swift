@@ -13,7 +13,7 @@ final class DataParser: @unchecked Sendable {
 		self.data = data
 	}
 
-	convenience init(data: Data) {
+	convenience init(data: some Sequence<UInt8>) {
 		self.init(data: AsyncThrowingStream {
 			for byte in data {
 				$0.yield(byte)
