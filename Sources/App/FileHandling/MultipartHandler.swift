@@ -106,7 +106,7 @@ actor MultipartHandler {
 		return try await parse(stream)
 	}
 
-	func parse(_ data: Data) async throws -> MultipartRequest {
+	func parse(_ data: some Sequence<UInt8>) async throws -> MultipartRequest {
 		try await parse(AsyncThrowingStream {
 			for byte in data {
 				$0.yield(byte)
@@ -154,7 +154,7 @@ actor MultipartHandler {
 			let contentType = headers.first { $0.is("content-type") }
 			if let contentType = contentType {
 				let file = try await fileStreamFactory()
-				guard let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!)
+				guard let stream = parser.readData(until: "\n--\(boundary)".utf8)
 				else { throw Error.invalidContent(name) }
 				try await file.write(stream)
 				content = .file(.init(
@@ -164,7 +164,7 @@ actor MultipartHandler {
 				try await file.close()
 			} else {
 				guard
-					let stream = parser.readData(until: "\n--\(boundary)".data(using: .utf8)!),
+					let stream = parser.readData(until: "\n--\(boundary)".utf8),
 					let value = String(data: try await stream.asData, encoding: .utf8)
 				else { throw Error.invalidContent(name) }
 				content = .value(value)
