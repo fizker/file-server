@@ -54,15 +54,15 @@ struct DataParserTests {
 
 		let subject = DataParser(data: input.data(using: .utf8)!)
 
-		let firstActual = try await read(stream: subject.readData(until: "foobar".data(using: .utf8)!), encoding: .utf8)
+		let firstActual = try await read(stream: subject.readData(until: "foobar".utf8), encoding: .utf8)
 		#expect("\(firstPart)\n" == firstActual)
 
-		let secondActual = try await read(stream: subject.readData(until: "foobar".data(using: .utf8)!), encoding: .utf8)
+		let secondActual = try await read(stream: subject.readData(until: "foobar".utf8), encoding: .utf8)
 		#expect("\n\(secondPart)\n" == secondActual)
 
-		let thirdActual = try await read(stream: subject.readData(until: "foobar".data(using: .utf8)!), encoding: .utf8)
+		let thirdActual = try await read(stream: subject.readData(until: "foobar".utf8), encoding: .utf8)
 		#expect("\n\(thirdPart)" == thirdActual)
 
-		#expect(subject.readData(until: "foobar".data(using: .utf8)!) == nil)
+		#expect(subject.readData(until: "foobar".utf8) == nil)
 	}
 }

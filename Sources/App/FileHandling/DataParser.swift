@@ -23,7 +23,7 @@ final class DataParser: @unchecked Sendable {
 	}
 
 	func readLine(encoding: String.Encoding = .utf8) async throws -> String? {
-		guard let stream = readData(until: "\n".data(using: .utf8)!.first!)
+		guard let stream = readData(until: "\n".utf8.first!)
 		else { return nil }
 
 		let data = try await stream.asData
