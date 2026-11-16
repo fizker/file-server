@@ -19,7 +19,7 @@ struct DataParserTests {
 		baz
 		"""
 
-		let subject = DataParser(data: input.data(using: .utf8)!)
+		let subject = DataParser(data: input.utf8)
 
 		let line1 = try await subject.readLine()
 		#expect("foo" == line1)
@@ -52,7 +52,7 @@ struct DataParserTests {
 		\(thirdPart)
 		"""
 
-		let subject = DataParser(data: input.data(using: .utf8)!)
+		let subject = DataParser(data: input.utf8)
 
 		let firstActual = try await read(stream: subject.readData(until: "foobar".utf8), encoding: .utf8)
 		#expect("\(firstPart)\n" == firstActual)

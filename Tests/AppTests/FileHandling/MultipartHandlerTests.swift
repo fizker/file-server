@@ -63,7 +63,7 @@ final class MultipartHandlerTests: @unchecked Sendable {
 
 		let subject = try MultipartHandler(boundary: boundary)
 
-		let request = try await subject.parse(input.data(using: .utf8)!)
+		let request = try await subject.parse(input.utf8)
 
 		var hasFiles = false
 		var values: [String: String] = [:]
@@ -104,7 +104,7 @@ final class MultipartHandlerTests: @unchecked Sendable {
 		let subject = try MultipartHandler(boundary: boundary)
 
 		await #expect(throws: App.MultipartHandler.Error.invalidFormattedData.self) {
-			_ = try await subject.parse(input.data(using: .utf8)!)
+			_ = try await subject.parse(input.utf8)
 		}
 	}
 
@@ -121,7 +121,7 @@ final class MultipartHandlerTests: @unchecked Sendable {
 		let subject = try MultipartHandler(boundary: boundary)
 
 		await #expect(throws: App.MultipartHandler.Error.invalidFormattedData.self) {
-			_ = try await subject.parse(input.data(using: .utf8)!)
+			_ = try await subject.parse(input.utf8)
 		}
 	}
 
@@ -138,7 +138,7 @@ final class MultipartHandlerTests: @unchecked Sendable {
 		let subject = try MultipartHandler(boundary: boundary)
 
 		await #expect(throws: App.MultipartHandler.Error.invalidFormattedData.self) {
-			try await subject.parse(input.data(using: .utf8)!)
+			try await subject.parse(input.utf8)
 		}
 	}
 
@@ -154,7 +154,7 @@ final class MultipartHandlerTests: @unchecked Sendable {
 		let subject = try MultipartHandler(boundary: boundary)
 
 		await #expect(throws: App.MultipartHandler.Error.contentMissing.self) {
-			try await subject.parse(input.data(using: .utf8)!)
+			try await subject.parse(input.utf8)
 		}
 	}
 
@@ -171,7 +171,7 @@ final class MultipartHandlerTests: @unchecked Sendable {
 		"""
 
 		let subject = try MultipartHandler(boundary: boundary)
-		let request = try await subject.parse(input.data(using: .utf8)!)
+		let request = try await subject.parse(input.utf8)
 
 		let value = try #require(request.value(named: "foo"))
 		let customHeader = try #require(value.header(named: "x-custom-header"))
@@ -196,7 +196,7 @@ final class MultipartHandlerTests: @unchecked Sendable {
 		"""
 
 		let subject = try MultipartHandler(boundary: boundary)
-		let request = try await subject.parse(input.data(using: .utf8)!)
+		let request = try await subject.parse(input.utf8)
 
 		let value = try #require(request.value(named: "foo"))
 
@@ -236,7 +236,7 @@ final class MultipartHandlerTests: @unchecked Sendable {
 
 		let subject = try MultipartHandler(boundary: boundary)
 
-		let request = try await subject.parse(input.data(using: .utf8)!)
+		let request = try await subject.parse(input.utf8)
 
 		var hasFiles = false
 		var values: [String: String] = [:]
